@@ -11,6 +11,7 @@ ORBIS is a dark aerospace mission-control console for orbital object confidence,
 
 ## Key flows
 - Signed HTTP-only cookie-session login with demo operator, registration, logout, protected routes, and session survival across backend reloads.
+- Login-cookie repair: HTTPS sessions use host-only `Secure; HttpOnly; SameSite=None; Partitioned` cookies for embedded previews, including Chromium with third-party cookies blocked. HTTP local development uses `SameSite=Lax`. Auth responses/requests bypass caches, and login verifies `/api/auth/me` before entering protected routes. Logout expires both partitioned and legacy cookies and resets the query cache/in-memory UI. Browsers blocking all embedded storage receive a new-tab recovery link; tokens are never stored in browser-accessible storage. Scientific modules are unchanged by this repair.
 - Dashboard loads `/api/summary`, `/api/health`, and bulk `/api/positions`, rendering one GPU point cloud plus a textured Earth.
 - Catalog pages query paginated `/api/objects`; satellites and debris are backend type filters.
 - Object detail loads object identity, state, trajectory, and telemetry; replay controls use returned samples.

@@ -1,0 +1,105 @@
+{
+  "iteration": 1,
+  "mode": "generate",
+  "summary": "6 acceptance criteria (login repair matrix) exercised via 5 backend tests (pytest, 3 files) + 4 named browser checks. All passed.",
+  "passed": 9,
+  "failed": 0,
+  "flaky": 0,
+  "blocked": 0,
+  "test_error": 0,
+  "checks": [
+    {
+      "criterion": "Demo login through the public ORBIS URL",
+      "name": "test_demo_login_happy_path (test_tscheck_demo_login.py)",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "POST /api/auth/login {email:operator@orbis.local,password:ORBIS-DEMO-2026} -> 200 {\"id\":\"operator-demo\",\"email\":\"operator@orbis.local\",\"name\":\"ORBIS Operator\"}; GET /api/auth/me -> 200 same user; orbis_session cookie present."
+    },
+    {
+      "criterion": "Demo login through the public ORBIS URL",
+      "name": "demo-login-dashboard",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Navigated https://orbis-tracker.preview.emergentagent.com/login, filled operator@orbis.local/ORBIS-DEMO-2026, clicked ENTER MISSION CONTROL, data-testid=user-profile-name showed 'ORBIS Operator'. No session-cookie error rendered."
+    },
+    {
+      "criterion": "Cross-site embedded-preview login with third-party cookies restricted",
+      "name": "cross-site-embedded-login-cookie-restricted",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Routed synthetic https://orbis-auth-test.example/ top-level origin embedding an iframe of the real /login page; enabled CDP Network.setCookieControls(enableThirdPartyCookieRestriction=true); logged in inside the iframe, dashboard (top-bar, user-profile-name='ORBIS Operator') loaded. Verified orbis_session cookie: httpOnly=true, secure=true, sameSite='None', partitionKey present (CHIPS)."
+    },
+    {
+      "criterion": "Refresh and protected direct navigation preserve authenticated sessions",
+      "name": "demo-login-dashboard",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "After standalone login, direct nav to /settings kept settings-user-name='ORBIS Operator'; page.reload() kept the same identity visible."
+    },
+    {
+      "criterion": "Refresh and protected direct navigation preserve authenticated sessions",
+      "name": "cross-site-embedded-login-cookie-restricted",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "After embedded login, parent page.reload(); waited for frame's login-submit-button to reappear as load signal, resolved embedded frame by URL, direct-navigated iframe to /dashboard, top-bar became visible again (session preserved cross-site)."
+    },
+    {
+      "criterion": "Logout removes browser authentication and stale session state",
+      "name": "test_logout_clears_session & test_auth_me_without_cookie_returns_null (test_tscheck_logout_and_absent_session.py)",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "POST /api/auth/logout -> 204, cookie cleared (Max-Age=0); subsequent GET /api/auth/me -> 200 null. GET /api/auth/me with no cookie / garbage cookie -> 200 null both times."
+    },
+    {
+      "criterion": "Logout removes browser authentication and stale session state",
+      "name": "logout-and-route-guard",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Standalone: logged in, clicked user-profile-button then logout-button, returned to login form; direct nav to /dashboard and /settings after logout both redirected back to the login page (email field visible)."
+    },
+    {
+      "criterion": "Logout removes browser authentication and stale session state",
+      "name": "cross-site-embedded-login-cookie-restricted",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Embedded: clicked frame logout-button, login-submit-button reappeared inside iframe; direct-navigated embedded frame to /dashboard, iframe redirected back to /login."
+    },
+    {
+      "criterion": "Invalid credentials and absent sessions do not authenticate",
+      "name": "test_demo_login_wrong_password_rejected (test_tscheck_demo_login.py)",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "POST /api/auth/login with wrong password -> 401 body containing 'Invalid email or password'; GET /api/auth/me -> 200 null (no session created); subsequent correct login -> 200 success."
+    },
+    {
+      "criterion": "Invalid credentials and absent sessions do not authenticate",
+      "name": "logout-and-route-guard",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Entered wrong passphrase, submitted; UI showed 'Invalid email or password', remained on login form; then correct passphrase submitted successfully and reached dashboard (user-profile-name='ORBIS Operator')."
+    },
+    {
+      "criterion": "Scientific dashboard remains authoritative and accessible after login",
+      "name": "test_summary_reflects_real_catalog_after_login (test_tscheck_summary_after_login.py)",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "After session login, GET /api/summary -> 200 {\"total_objects\":18693, subsystems.backend=OPERATIONAL, subsystems.dataset=OPERATIONAL}."
+    },
+    {
+      "criterion": "Scientific dashboard remains authoritative and accessible after login",
+      "name": "dashboard-shows-real-catalog",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Captured the real /api/summary XHR fired during login->dashboard transition (total_objects=18693); dashboard UI rendered the same figure (18693) sourced from the live scientific backend."
+    }
+  ],
+  "bugs": [],
+  "action_items": [],
+  "retest_needed": false,
+  "notes": [
+    "12 checks entries map to 6 acceptance criteria (each criterion has backend+browser and/or multiple browser artifacts as applicable); 4 distinct named browser checks + 3 backend test files (5 pytest functions) were authored, matching the ONE-artifact-per-lane-per-criterion rule with reuse where a single check legitimately covers multiple criteria in one flow.",
+    "Console error observed during logout-and-route-guard run was the expected 401 from the deliberate wrong-password negative test, not an application defect.",
+    "Confirmed via backend code (lib/session_cookies.py) that SameSite=None/Secure/Partitioned attributes are applied only for HTTPS requests (production/public URL), while localhost HTTP correctly falls back to SameSite=Lax -- consistent with the briefing's seed facts, not a bug.",
+    "No unrelated feature/geography/telemetry/chart work assessed, per spec_deviations scope (login repair only)."
+  ]
+}

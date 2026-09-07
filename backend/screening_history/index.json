@@ -1,0 +1,16 @@
+[
+  {
+    "screening_id": "35c5d68b-b99b-49d5-ab6e-39f7a139e84d",
+    "timestamp_utc": "2026-09-07T22:13:43.631590Z",
+    "target_id": "29751",
+    "target_name": "FENGYUN 1C DEB",
+    "time_step_min": 10,
+    "window_min": 60,
+    "threshold_km": 50.0,
+    "result_count": 18689,
+    "minimum_separation_km": 47.91381929141346,
+    "tca_utc": "2026-09-07T22:43:43.631583Z",
+    "status": "POTENTIAL_CONJUNCTION",
+    "potential_count": 1
+  }
+]

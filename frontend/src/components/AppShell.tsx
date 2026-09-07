@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Activity, BarChart3, ChevronRight, CircleUserRound, Database, Gauge, LogOut, Radar, Search, Settings2, ShieldAlert, Sparkles, Target, X } from "lucide-react";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+import { endSession } from "@/lib/session";
+import { toast } from "sonner";
 import type { AuthUser, OrbisObject } from "@/lib/orbis";
 import { useOrbisStore } from "@/lib/store";
 import { useState } from "react";
@@ -29,7 +31,8 @@ export default function AppShell() {
   const { selectedObjectId, setSelectedObject } = useOrbisStore();
   const user = useQuery({ queryKey: ["auth-me"], queryFn: () => apiGet<AuthUser | null>("/auth/me"), retry: false });
   const selected = useQuery({ queryKey: ["object", selectedObjectId], queryFn: () => apiGet<OrbisObject>(`/objects/${selectedObjectId}`), enabled: Boolean(selectedObjectId) });
-  const logout = async () => { await apiPost<void>("/auth/logout"); navigate("/login", { replace: true }); };
+  const signOut = useMutation({ mutationFn: () => endSession(), onError: () => toast.error("Could not sign out. Please retry.") });
+  const logout = () => signOut.mutate();
   return <div className="min-h-screen bg-[#050811] text-slate-200">
     <aside data-testid="sidebar-navigation" className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-slate-800/80 bg-[#080e1a] lg:flex lg:flex-col">
       <Link data-testid="orbis-logo-link" to="/dashboard" className="flex h-20 items-center gap-3 border-b border-slate-800 px-5"><div className="grid h-9 w-9 place-items-center rounded border border-cyan-400/50 bg-cyan-400/10 text-cyan-300"><Radar size={20} /></div><div><div data-testid="orbis-logo-label" className="font-heading text-lg font-black tracking-[0.18em] text-white">ORBIS</div><div data-testid="orbis-logo-subtitle" className="font-mono text-[8px] tracking-[0.14em] text-slate-500">ORBITAL RISK INTEL</div></div></Link>

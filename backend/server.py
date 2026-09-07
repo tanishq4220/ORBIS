@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Response
+from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import jwt
 
@@ -22,6 +22,7 @@ load_dotenv(ROOT_DIR / ".env")
 from catalog import row_to_object, store, subsystem_status  # noqa: E402
 from history import get_screening, list_history, save_screening  # noqa: E402
 from models.auth import AuthUser, LoginRequest, RegisterRequest  # noqa: E402
+from lib.session_cookies import clear_session_cookie, set_session_cookie  # noqa: E402
 from models.orbis import ScreenRequest  # noqa: E402
 from propagate import (  # noqa: E402
     build_satrec_cache,
@@ -132,17 +133,17 @@ async def health() -> dict[str, Any]:
 
 
 @api_router.post("/auth/login", response_model=AuthUser)
-async def login(body: LoginRequest, response: Response) -> AuthUser:
+async def login(body: LoginRequest, request: Request, response: Response) -> AuthUser:
     user = _users.get(body.email.strip().lower())
     if not user or not secrets.compare_digest(user["password_hash"], _password_hash(body.password)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = _create_session(user)
-    response.set_cookie("orbis_session", token, httponly=True, samesite="lax", max_age=86400 * 7)
+    set_session_cookie(response, request, token)
     return _user_payload(user)
 
 
 @api_router.post("/auth/register", response_model=AuthUser)
-async def register(body: RegisterRequest, response: Response) -> AuthUser:
+async def register(body: RegisterRequest, request: Request, response: Response) -> AuthUser:
     email = body.email.strip().lower()
     if email in _users:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -154,12 +155,13 @@ async def register(body: RegisterRequest, response: Response) -> AuthUser:
     }
     _users[email] = user
     token = _create_session(user)
-    response.set_cookie("orbis_session", token, httponly=True, samesite="lax", max_age=86400 * 7)
+    set_session_cookie(response, request, token)
     return _user_payload(user)
 
 
 @api_router.get("/auth/me", response_model=Optional[AuthUser])
-async def me(orbis_session: Optional[str] = Cookie(default=None)) -> Optional[AuthUser]:
+async def me(response: Response, orbis_session: Optional[str] = Cookie(default=None)) -> Optional[AuthUser]:
+    response.headers["Cache-Control"] = "no-store"
     if not orbis_session:
         return None
     try:
@@ -169,8 +171,8 @@ async def me(orbis_session: Optional[str] = Cookie(default=None)) -> Optional[Au
 
 
 @api_router.post("/auth/logout", status_code=204)
-async def logout(response: Response, orbis_session: Optional[str] = Cookie(default=None)) -> None:
-    response.delete_cookie("orbis_session")
+async def logout(request: Request, response: Response) -> None:
+    clear_session_cookie(response, request)
 
 
 @api_router.get("/summary")
