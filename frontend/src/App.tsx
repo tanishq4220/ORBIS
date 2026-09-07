@@ -1,19 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { apiGet } from "@/lib/api";
-import AppShell from "@/components/AppShell";
+import AppShell from "@/components/WorkstationShell";
 import type { AuthUser } from "@/lib/orbis";
-import Dashboard from "@/pages/Dashboard";
-import CatalogPage from "@/pages/CatalogPage";
-import ObjectDetail from "@/pages/ObjectDetail";
-import Conjunctions from "@/pages/Conjunctions";
-import ConjunctionHistory from "@/pages/ConjunctionHistory";
-import AciInsights from "@/pages/AciInsights";
-import Analytics from "@/pages/Analytics";
-import RiskAnalysis from "@/pages/RiskAnalysis";
-import Settings from "@/pages/Settings";
+import Dashboard from "@/pages/CommandDashboard";
+import CatalogPage from "@/pages/CatalogWorkspace";
+import ObjectDetail from "@/pages/ObjectWorkspace";
+import Conjunctions from "@/pages/ScreeningWorkspace";
+import ConjunctionHistory from "@/pages/HistoryWorkspace";
+import AciInsights from "@/pages/AciWorkspace";
+import Analytics from "@/pages/AnalyticsWorkspace";
+import RiskAnalysis from "@/pages/RiskWorkspace";
+import Settings from "@/pages/SettingsWorkspace";
 import Login from "@/pages/Login";
-import Register from "@/pages/Register";
+import Register from "@/pages/RegisterWorkspace";
 import ForgotPassword from "@/pages/ForgotPassword";
 
 function ProtectedRoutes() { const session = useQuery({ queryKey: ["auth-me"], queryFn: () => apiGet<AuthUser | null>("/auth/me"), retry: false }); if (session.isLoading) return <div data-testid="session-loading" className="grid min-h-screen place-items-center bg-[#050811] font-mono text-xs text-cyan-300">AUTHENTICATING…</div>; if (session.isError || !session.data) return <Navigate to="/login" replace />; return <AppShell />; }

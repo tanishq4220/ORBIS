@@ -75,7 +75,7 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    --radius: 0.3rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -132,3 +132,29 @@
     }
   body { min-width: 320px; background: #050811; }
 }
+
+/* ORBIS workstation: restrained, high-density technical surfaces. */
+:root { color-scheme: dark; --background: #060b12; --foreground: #e5edf4; --card: #0c131e; --card-foreground: #e5edf4; --popover: #111c29; --popover-foreground: #e5edf4; --primary: #59d7ee; --primary-foreground: #061018; --secondary: #132130; --secondary-foreground: #dae5ed; --muted: #101b29; --muted-foreground: #8295a8; --accent: #162a37; --accent-foreground: #e5edf4; --border: #1a2b3b; --input: #24384b; --ring: #59d7ee; }
+body { background: #060b12; }
+button, a, input, select { transition-property: color, background-color, border-color, opacity; transition-duration: 160ms; }
+button:not(:disabled), select, a { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #63ccdf; outline-offset: 3px; }
+::selection { background: #17465b; color: #dffbff; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: #263748; border-radius: 3px; }
+.console-panel { border: 1px solid #1b2a39; background: #0b131e; border-radius: 4px; min-width: 0; }
+.console-input { height: 38px; width: 100%; border: 1px solid #29394a; border-radius: 3px; background: #080f18; padding: 0 11px; font-size: 12px; color: #dce9f3; }
+.console-input:focus { outline: 1px solid #52a9bd; }
+.technical-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #8194a7; }
+.metric-value { font-variant-numeric: tabular-nums; }
+.mission-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
+.globe-stage { height: clamp(480px, 62vh, 760px); min-height: 480px; position: relative; overflow: hidden; background: #04090f; }
+.technical-grid { background-image: linear-gradient(#18303c20 1px, transparent 1px), linear-gradient(90deg, #18303c20 1px, transparent 1px); background-size: 28px 28px; }
+.fade-enter { animation: console-enter .25s ease-out both; }
+@keyframes console-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes selected-pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+@media (min-width: 1700px) { .mission-grid { grid-template-columns: minmax(0, 1fr) 348px; } }
+@media (max-width: 1150px) { .mission-grid { grid-template-columns: minmax(0, 1fr); } .globe-stage { height: 560px; } }
+@media (max-width: 600px) { .globe-stage { min-height: 440px; height: 440px; } }
+@media (prefers-reduced-motion: reduce) { .fade-enter { animation: none; } * { scroll-behavior: auto !important; } }

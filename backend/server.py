@@ -2,31 +2,31 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
-import secrets
-import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Request, Response
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-import jwt
+from starlette.concurrency import run_in_threadpool
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 from catalog import row_to_object, store, subsystem_status  # noqa: E402
 from history import get_screening, list_history, save_screening  # noqa: E402
-from models.auth import AuthUser, LoginRequest, RegisterRequest  # noqa: E402
-from lib.session_cookies import clear_session_cookie, set_session_cookie  # noqa: E402
+from lib.auth import ensure_demo_user  # noqa: E402
+from lib.db import ensure_indexes  # noqa: E402
+from routers.auth import router as auth_router  # noqa: E402
+from routers.connection import router as connection_router  # noqa: E402
+from routers.visualization import router as visualization_router  # noqa: E402
 from models.orbis import ScreenRequest  # noqa: E402
 from propagate import (  # noqa: E402
     build_satrec_cache,
-    parse_utc,
+    parse_utc as scientific_parse_utc,
     propagate_all_globe,
     state_payload,
     trajectory_samples,
@@ -35,9 +35,18 @@ from propagate import (  # noqa: E402
 from screening import screen_object  # noqa: E402
 
 
+def parse_utc(value: str | None = None):
+    try:
+        return scientific_parse_utc(value)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, "Invalid UTC timestamp") from exc
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _satrec_cache, _ids, _types, _startup_error
+    await ensure_indexes()
+    await ensure_demo_user()
     try:
         store.load()
         frame = store.require()
@@ -57,7 +66,7 @@ api_router = APIRouter(prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,51 +76,6 @@ _satrec_cache: list = []
 _ids: list[str] = []
 _types: list[str] = []
 _startup_error: Optional[str] = None
-_users: dict[str, dict[str, str]] = {}
-SESSION_SECRET = os.environ["SESSION_SECRET"]
-
-
-def _password_hash(password: str) -> str:
-    return hashlib.pbkdf2_hmac("sha256", password.encode(), b"orbis-local", 120_000).hex()
-
-
-def _user_payload(user: dict[str, str]) -> AuthUser:
-    return AuthUser(id=user["id"], email=user["email"], name=user["name"])
-
-
-def _seed_demo_user() -> None:
-    _users["operator@orbis.local"] = {
-        "id": "operator-demo",
-        "email": "operator@orbis.local",
-        "name": "ORBIS Operator",
-        "password_hash": _password_hash("ORBIS-DEMO-2026"),
-    }
-
-
-_seed_demo_user()
-
-
-def _create_session(user: dict[str, str]) -> str:
-    return jwt.encode(
-        {
-            "sub": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "exp": datetime.now(timezone.utc).timestamp() + 86400 * 7,
-        },
-        SESSION_SECRET,
-        algorithm="HS256",
-    )
-
-
-def _current_user(session: Optional[str]) -> AuthUser:
-    if not session:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        payload = jwt.decode(session, SESSION_SECRET, algorithms=["HS256"])
-        return AuthUser(id=str(payload["sub"]), email=str(payload["email"]), name=str(payload["name"]))
-    except (jwt.InvalidTokenError, KeyError, TypeError) as exc:
-        raise HTTPException(status_code=401, detail="Session expired") from exc
 
 
 @api_router.get("/health")
@@ -130,49 +94,6 @@ async def health() -> dict[str, Any]:
         "startup_error": _startup_error,
         "subsystems": statuses,
     }
-
-
-@api_router.post("/auth/login", response_model=AuthUser)
-async def login(body: LoginRequest, request: Request, response: Response) -> AuthUser:
-    user = _users.get(body.email.strip().lower())
-    if not user or not secrets.compare_digest(user["password_hash"], _password_hash(body.password)):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = _create_session(user)
-    set_session_cookie(response, request, token)
-    return _user_payload(user)
-
-
-@api_router.post("/auth/register", response_model=AuthUser)
-async def register(body: RegisterRequest, request: Request, response: Response) -> AuthUser:
-    email = body.email.strip().lower()
-    if email in _users:
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
-    user = {
-        "id": str(uuid.uuid4()),
-        "email": email,
-        "name": body.name.strip(),
-        "password_hash": _password_hash(body.password),
-    }
-    _users[email] = user
-    token = _create_session(user)
-    set_session_cookie(response, request, token)
-    return _user_payload(user)
-
-
-@api_router.get("/auth/me", response_model=Optional[AuthUser])
-async def me(response: Response, orbis_session: Optional[str] = Cookie(default=None)) -> Optional[AuthUser]:
-    response.headers["Cache-Control"] = "no-store"
-    if not orbis_session:
-        return None
-    try:
-        return _current_user(orbis_session)
-    except HTTPException:
-        return None
-
-
-@api_router.post("/auth/logout", status_code=204)
-async def logout(request: Request, response: Response) -> None:
-    clear_session_cookie(response, request)
 
 
 @api_router.get("/summary")
@@ -229,7 +150,7 @@ async def get_analytics() -> dict[str, Any]:
 
 
 @api_router.get("/objects")
-async def get_objects(page: int = 1, limit: int = 50, search: Optional[str] = None, object_type: Optional[str] = None, decision: Optional[str] = None, ml_prediction: Optional[str] = None, sort: Optional[str] = None, order: str = "desc") -> dict[str, Any]:
+async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), search: Optional[str] = None, object_type: Optional[str] = None, decision: Optional[str] = None, ml_prediction: Optional[str] = None, sort: Optional[str] = None, order: str = "desc") -> dict[str, Any]:
     import pandas as pd
     try:
         frame = store.require().copy()
@@ -237,7 +158,7 @@ async def get_objects(page: int = 1, limit: int = 50, search: Optional[str] = No
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     if search:
         q = search.strip().lower()
-        frame = frame[(frame["ID"].astype(str).str.lower().str.contains(q, na=False)) | (frame["Name"].astype(str).str.lower().str.contains(q, na=False)) | (frame["Type"].astype(str).str.lower().str.contains(q, na=False))]
+        frame = frame[(frame["ID"].astype(str).str.lower().str.contains(q, na=False, regex=False)) | (frame["Name"].astype(str).str.lower().str.contains(q, na=False, regex=False)) | (frame["Type"].astype(str).str.lower().str.contains(q, na=False, regex=False))]
     if object_type:
         frame = frame[frame["Type"].astype(str).str.lower() == object_type.strip().lower()]
     if decision:
@@ -273,7 +194,7 @@ async def get_object_state(object_id: str, utc: Optional[str] = None) -> dict[st
 
 
 @api_router.get("/objects/{object_id}/trajectory")
-async def get_object_trajectory(object_id: str, hours: float = 1.5, step_minutes: float = 2.0, start_utc: Optional[str] = None) -> dict[str, Any]:
+async def get_object_trajectory(object_id: str, hours: float = Query(1.5, gt=0, le=24), step_minutes: float = Query(2.0, ge=0.25, le=60), start_utc: Optional[str] = None) -> dict[str, Any]:
     row = store.get_row(object_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Object {object_id} not found.")
@@ -284,16 +205,16 @@ async def get_object_trajectory(object_id: str, hours: float = 1.5, step_minutes
 
 
 @api_router.get("/objects/{object_id}/telemetry")
-async def get_object_telemetry(object_id: str, hours: float = 1.0, step_minutes: float = 1.0, start_utc: Optional[str] = None) -> dict[str, Any]:
+async def get_object_telemetry(object_id: str, hours: float = Query(1.0, gt=0, le=24), step_minutes: float = Query(1.0, ge=0.25, le=60), start_utc: Optional[str] = None) -> dict[str, Any]:
     traj = await get_object_trajectory(object_id, hours, step_minutes, start_utc)
-    return {"object_id": object_id, "status": traj.get("status", "NOT_CALCULATED"), "points": [{"utc": s["utc"], "altitude_km": s.get("altitude_km"), "speed_km_s": s.get("speed_km_s"), "latitude_deg": s.get("latitude_deg"), "longitude_deg": s.get("longitude_deg"), "position_teme_km": s.get("position_teme_km"), "velocity_teme_km_s": s.get("velocity_teme_km_s"), "globe_xyz": s.get("globe_xyz")} for s in traj.get("samples", [])]}
+    return {"object_id": object_id, "status": traj.get("status", "NOT_CALCULATED"), "points": traj.get("samples", [])}
 
 
 @api_router.get("/positions")
 async def get_positions(utc: Optional[str] = None) -> dict[str, Any]:
     if not store.loaded or not _satrec_cache:
         raise HTTPException(status_code=503, detail="DATASET UNAVAILABLE")
-    return propagate_all_globe(_satrec_cache, _types, _ids, parse_utc(utc))
+    return await run_in_threadpool(propagate_all_globe, _satrec_cache, _types, _ids, parse_utc(utc))
 
 
 @api_router.post("/conjunctions/screen")
@@ -305,7 +226,7 @@ async def run_screening(body: ScreenRequest) -> dict[str, Any]:
     if not target.get("tle_line1") or not target.get("tle_line2"):
         raise HTTPException(status_code=400, detail="Target has no TLE.")
     frame = store.require()
-    result = screen_object(target_id=str(target["id"]), target_tle1=str(target["tle_line1"]), target_tle2=str(target["tle_line2"]), catalog_rows=[row_to_object(r) for _, r in frame.iterrows()], time_step_min=body.time_step_min, window_min=body.window_min, threshold_km=body.threshold_km, top_n=body.top_n, start_utc=parse_utc(body.start_utc) if body.start_utc else datetime.now(timezone.utc))
+    result = await run_in_threadpool(screen_object, target_id=str(target["id"]), target_tle1=str(target["tle_line1"]), target_tle2=str(target["tle_line2"]), catalog_rows=[row_to_object(r) for _, r in frame.iterrows()], time_step_min=body.time_step_min, window_min=body.window_min, threshold_km=body.threshold_km, top_n=body.top_n, start_utc=parse_utc(body.start_utc) if body.start_utc else datetime.now(timezone.utc))
     if result.get("status") != "ERROR":
         save_screening(result)
     return result
@@ -333,9 +254,12 @@ async def global_search(q: str, limit: int = 20) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     text = q.strip().lower()
-    mask = (frame["ID"].astype(str).str.lower().str.contains(text, na=False)) | (frame["Name"].astype(str).str.lower().str.contains(text, na=False)) | (frame["Type"].astype(str).str.lower().str.contains(text, na=False))
+    mask = (frame["ID"].astype(str).str.lower().str.contains(text, na=False, regex=False)) | (frame["Name"].astype(str).str.lower().str.contains(text, na=False, regex=False)) | (frame["Type"].astype(str).str.lower().str.contains(text, na=False, regex=False))
     hits = frame[mask].head(limit)
     return {"query": q, "total": int(mask.sum()), "results": [row_to_object(row, include_tle=False) for _, row in hits.iterrows()]}
 
 
+api_router.include_router(auth_router)
+api_router.include_router(connection_router)
+api_router.include_router(visualization_router)
 app.include_router(api_router)

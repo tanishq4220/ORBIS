@@ -2,6 +2,16 @@ export type Decision = "FAST" | "DEEP" | "INSUFFICIENT_DATA" | string;
 export type MlPrediction = "RELIABLE" | "LOW_CONFIDENCE" | string;
 
 export interface AuthUser { id: string; email: string; name: string }
+export interface LoginRequest { email: string; password: string }
+export interface RegisterRequest extends LoginRequest { name: string }
+export interface ConnectionConfig { mode: "local" | "remote"; url: string | null }
+export interface ConnectionTest { connected: boolean; message: string; subsystems: Record<string, string> }
+export interface EnvironmentState { utc: string; sun_direction: number[]; illumination_model: string }
+export interface ObjectVisual { object_id: string; kind: "photograph" | "representative"; image_url: string | null; source_url: string | null; credit: string | null; caption: string }
+export interface GeographyLabel { name: string; latitude: number; longitude: number; capital: boolean }
+export interface GeographyData { source: string; lines: number[][][]; labels: GeographyLabel[] }
+export interface ScreenRequest { object_id: string; time_step_min: number; window_min: number; threshold_km: number; top_n: number; start_utc?: string | null }
+export interface ScreeningHistoryItem { screening_id: string; target_id: string; target_name: string | null; timestamp_utc: string; time_step_min: number; window_min: number; threshold_km: number; top_n?: number; status: string; result_count: number; minimum_separation_km: number | null; tca_utc: string | null; potential_count: number }
 export interface Vec3 { x: number; y: number; z: number }
 export interface Vel3 { vx: number; vy: number; vz: number }
 export interface ObjectState {
@@ -31,7 +41,7 @@ export interface HealthResponse { status: string; service: string; utc: string; 
 export interface PositionsResponse { utc: string; count: number; ids: string[]; positions: number[]; valid: number[]; type_codes: number[] }
 export interface PaginatedObjects { page: number; limit: number; total: number; total_pages: number; objects: OrbisObject[] }
 export interface TrajectoryResponse { object_id: string; name?: string; status: string; sample_count?: number; samples: ObjectState[] }
-export interface TelemetryPoint { utc: string; altitude_km: number | null; speed_km_s: number | null; latitude_deg: number | null; longitude_deg: number | null; position_teme_km: Vec3 | null; velocity_teme_km_s: Vel3 | null; globe_xyz: Vec3 | null }
+export interface TelemetryPoint extends ObjectState { utc: string }
 export interface TelemetryResponse { object_id: string; status: string; points: TelemetryPoint[] }
 export interface ScreeningRow { object_id: string; object_name: string | null; object_type: string | null; minimum_separation_km: number; tca_utc: string; status: string }
 export interface ScreeningResult { screening_id: string; status: string; prototype?: boolean; disclaimer?: string; target_id: string; target_name?: string | null; timestamp_utc: string; completed_utc?: string; start_utc?: string; time_step_min: number; window_min: number; threshold_km: number; top_n?: number; objects_screened?: number; potential_count?: number; minimum_separation_km: number | null; tca_utc: string | null; results: ScreeningRow[]; full_results?: ScreeningRow[]; error?: string }

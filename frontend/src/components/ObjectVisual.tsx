@@ -1,0 +1,18 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
+import { apiGet } from "@/lib/api";
+import type { ObjectVisual as VisualResponse, OrbisObject } from "@/lib/orbis";
+
+export default function ObjectVisual({object}:{object:OrbisObject}){
+  const [failed,setFailed]=useState(false);
+  const visual=useQuery({queryKey:["visual",object.id,object.name],queryFn:()=>apiGet<VisualResponse>(`/visuals/${object.id}?name=${encodeURIComponent(object.name||"")}`),staleTime:Infinity,retry:false});
+  const verified=!failed&&!visual.isError&&visual.data&&visual.data.kind!=="representative"?visual.data:undefined;
+  const isPhoto=verified?.kind==="photograph";
+  const debris=object.type==="Debris";
+  const label=isPhoto?"REAL SPACECRAFT IMAGE":verified?"VERIFIED TECHNICAL VISUAL":debris?"DEBRIS TECHNICAL VISUALIZATION":"REPRESENTATIVE OBJECT MODEL";
+  return <div data-testid="object-visual-panel" className="overflow-hidden rounded-sm border border-slate-800 bg-[#080f18]">
+    {verified?.image_url?<div className="relative h-44 w-full overflow-hidden bg-[#04070c]"><img data-testid="verified-object-image" key={verified.image_url} src={verified.image_url} alt={verified.caption} onError={()=>setFailed(true)} onLoad={e=>e.currentTarget.classList.remove("opacity-0")} className="h-full w-full object-cover opacity-0 transition-opacity duration-500" style={{opacity:1}}/><div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-cyan-400/10"/></div>:<div className="technical-grid relative h-36"><svg data-testid="representative-object-drawing" viewBox="0 0 320 160" className={`h-full w-full ${debris?"text-amber-400/75":"text-cyan-300/70"}`} role="img" aria-label={debris?"Representative debris geometry, not an exact model":"Representative satellite geometry, not an exact model"}><g fill="none" stroke="currentColor" strokeWidth=".8">{debris?<><path d="M130 48l51 8 28 49-31 25-58-18-12-34z"/><path d="M130 48l31 41 48 16M161 89l17 41M108 78l53 11M181 56l-20 33"/><path d="M89 121l14-7 8 19-18 3zM217 47l13-4 8 11-18 9z"/></>:<><path fill="#122533" d="M140 62l29-16 28 17v37l-29 17-28-18z"/><path d="M140 62l28 17 29-16M168 79v38M169 46v-17M163 29h12"/><path fill="#0c2232" d="M140 77L73 40 36 62l104 58zM197 78l67 38 34-20-101-58z"/><path d="M63 54l74 42M86 48l53 32M62 76l26-14M82 87l26-14M103 99l26-14M216 69l62 35M237 80l-21 12M260 92l-21 13"/></>}<path strokeDasharray="3 4" opacity=".35" d="M20 133h280M160 16v126"/></g></svg><div data-testid="visual-not-to-scale" className="absolute bottom-2 right-3 font-mono text-[7px] tracking-widest text-slate-500">NOT TO SCALE</div></div>}
+    <div className="border-t border-slate-800 px-3 py-2"><div data-testid="object-visual-classification" className={`font-mono text-[8px] tracking-wider ${isPhoto?"text-emerald-300":verified?"text-cyan-300":"text-slate-300"}`}>{label}</div>{verified?<a data-testid="object-image-source" href={verified.source_url||undefined} target="_blank" rel="noreferrer" className="mt-1 flex items-center gap-1 text-[9px] text-cyan-300">SOURCE · {verified.credit}<ExternalLink size={9}/></a>:<p data-testid="object-visual-disclaimer" className="mt-1 text-[9px] leading-4 text-slate-500">{debris?"Individual debris fragments have no confirmed public photograph. ":""}Technical visualization · exact shape and dimensions unavailable.</p>}</div>
+  </div>;
+}

@@ -20,7 +20,8 @@ type JsonBody = unknown;
 
 async function request<T>(method: string, path: string, body?: JsonBody): Promise<T> {
   // Auth rides the httpOnly session cookie automatically — never add auth headers here.
-  const res = await fetch(`${BASE}${path}`, {
+  const scientific = /^\/(health|summary|analytics|positions|search|objects|conjunctions)(\/|\?|$)/.test(path);
+  const res = await fetch(`${BASE}${scientific ? "/data" : ""}${path}`, {
     method,
     credentials: "include",
     cache: path.startsWith("/auth/") ? "no-store" : "default",

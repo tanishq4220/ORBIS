@@ -124,7 +124,7 @@ def screen_object(
     top = results[:top_n]
     potentials = [r for r in results if r["status"] == "POTENTIAL_CONJUNCTION"]
 
-    overall = "POTENTIAL_CONJUNCTION" if potentials else "CLEAR"
+    overall = "ERROR" if not results else "POTENTIAL_CONJUNCTION" if potentials else "CLEAR"
     min_sep = top[0]["minimum_separation_km"] if top else None
     tca_overall = top[0]["tca_utc"] if top else None
 
@@ -132,6 +132,7 @@ def screen_object(
     return {
         "screening_id": str(uuid.uuid4()),
         "status": overall,
+        **({"error": "No secondary objects could be propagated; screening is inconclusive."} if not results else {}),
         "prototype": True,
         "disclaimer": (
             "PROTOTYPE CONJUNCTION SCREENING — geometric separation only. "

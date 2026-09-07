@@ -1,0 +1,31 @@
+import { useEffect, useRef } from "react";
+import { Play, Pause, SkipBack, SkipForward, Radio } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
+import { Button } from "@/components/ui/button";
+import { useOrbisStore } from "@/lib/store";
+import { number, utc } from "@/lib/data";
+import type { ObjectData } from "@/lib/data";
+import { DataState } from "./ConsolePrimitives";
+
+export default function TelemetryConsole({data,compact=false}:{data:ObjectData;compact?:boolean}){
+  const {selectedObjectId,playing,setPlaying,live,setLive,playbackRate,setPlaybackRate,telemetryIndex,setTelemetryIndex}=useOrbisStore();
+  const points=!data.telemetry.isError?data.telemetry.data?.points:undefined;
+  const elapsed=useRef(0);
+  useEffect(()=>{elapsed.current=0;},[selectedObjectId,playing]);
+  useEffect(()=>{
+    if(!playing||!points?.length)return;
+    let previous=performance.now();
+    const timer=setInterval(()=>{
+      const now=performance.now();elapsed.current+=(now-previous)*useOrbisStore.getState().playbackRate;previous=now;
+      let index=useOrbisStore.getState().telemetryIndex;
+      while(index<points.length-1){const gap=Date.parse(points[index+1].utc)-Date.parse(points[index].utc);if(elapsed.current<gap)break;elapsed.current-=gap;index++;}
+      if(index!==useOrbisStore.getState().telemetryIndex)useOrbisStore.getState().setTelemetryIndex(index);
+      if(index>=points.length-1)useOrbisStore.getState().setPlaying(false);
+    },200);return ()=>clearInterval(timer);
+  },[playing,points]);
+  const current=data.current;
+  const step=(direction:number)=>{setPlaying(false);setTelemetryIndex(Math.min(Math.max(telemetryIndex+direction,0),(points?.length||1)-1));};
+  return <section data-testid="telemetry-console" className="console-panel"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3"><div className="flex items-center gap-2"><Radio size={13} className={live?"text-emerald-300":"text-amber-300"}/><span data-testid="telemetry-mode" className="technical-label text-slate-300">{live?"LIVE STATE":"UTC REPLAY"}</span><span data-testid="telemetry-sample-count" className="font-mono text-[8px] text-slate-500">{selectedObjectId?`${points?.length??"—"} BACKEND SAMPLES`:"SELECT AN OBJECT TO REPLAY"}</span></div><span data-testid="telemetry-timestamp" className="font-mono text-[9px] text-cyan-200">{current?.utc?utc(current.utc):"AWAITING TELEMETRY"}</span></div>
+  <div className="px-4 py-3">{selectedObjectId?<><DataState error={data.telemetry.isError} loading={data.telemetry.isLoading} message="LOADING TELEMETRY" retry={()=>data.telemetry.refetch()}/><div className="flex flex-wrap items-center gap-1.5"><Button data-testid="telemetry-step-back-button" title="Step back" variant="outline" size="icon-sm" disabled={!points?.length} onClick={()=>step(-1)}><SkipBack size={12}/></Button><Button data-testid="telemetry-play-button" title={playing?"Pause replay":"Play replay"} size="icon-sm" disabled={!points?.length} onClick={()=>{if(telemetryIndex===(points?.length||0)-1)setTelemetryIndex(0);setPlaying(!playing);}}>{playing?<Pause size={12}/>:<Play size={12}/>}</Button><Button data-testid="telemetry-step-forward-button" title="Step forward" variant="outline" size="icon-sm" disabled={!points?.length} onClick={()=>step(1)}><SkipForward size={12}/></Button><div className="mx-2 h-4 w-px bg-slate-700"/>{[1,10,100,1000].map(rate=><Button data-testid={`telemetry-rate-${rate}x-button`} key={rate} variant={rate===playbackRate?"secondary":"ghost"} size="xs" className="font-mono text-[9px]" onClick={()=>setPlaybackRate(rate)}>{rate}x</Button>)}<Button data-testid="telemetry-return-live-button" size="xs" variant="outline" className="ml-auto font-mono text-[8px] text-emerald-300" onClick={()=>setLive(true)}>RETURN TO LIVE</Button></div><input data-testid="telemetry-timeline-slider" aria-label="UTC telemetry sample" type="range" min={0} max={Math.max((points?.length||1)-1,0)} value={telemetryIndex} disabled={!points?.length} onChange={e=>{setPlaying(false);setTelemetryIndex(Number(e.target.value));}} className="mt-4 h-1 w-full accent-cyan-300"/><div data-testid="telemetry-range-labels" className="mt-2 flex justify-between font-mono text-[8px] text-slate-500"><span>{points?.[0]?.utc?utc(points[0].utc):"NO SAMPLES"}</span><span>{points?.length?utc(points[points.length-1].utc):""}</span></div>
+  {!compact?<><div data-testid="telemetry-altitude-chart" className="mt-4 h-40 min-w-0"><ResponsiveContainer width="100%" height="100%"><AreaChart data={points||[]} margin={{top:8,right:12,left:0,bottom:0}}><XAxis dataKey="utc" tickFormatter={v=>String(v).slice(11,16)} tick={{fill:"#7d91a5",fontSize:9}} minTickGap={50}/><YAxis dataKey="altitude_km" domain={["auto","auto"]} tick={{fill:"#7d91a5",fontSize:9}} width={62} tickFormatter={v=>Number(v).toFixed(0)}/><Tooltip contentStyle={{background:"#0d1b29",border:"1px solid #26394b",fontSize:11}} labelFormatter={v=>utc(String(v))}/><Area name="Altitude (km)" dataKey="altitude_km" stroke="#66c2d2" fill="#153442" fillOpacity={.5} isAnimationActive={false}/>{!live&&points?.[telemetryIndex]?<ReferenceLine x={points[telemetryIndex].utc} stroke="#efb466"/>:null}</AreaChart></ResponsiveContainer></div><div data-testid="telemetry-vectors" className="mt-3 grid gap-3 sm:grid-cols-2"><div><div className="technical-label">TEME POSITION / KM</div><p className="mt-2 break-words font-mono text-[10px] text-slate-300">X {number(current?.position_teme_km?.x,3)} · Y {number(current?.position_teme_km?.y,3)} · Z {number(current?.position_teme_km?.z,3)}</p></div><div><div className="technical-label">TEME VELOCITY / KM S⁻¹</div><p className="mt-2 break-words font-mono text-[10px] text-slate-300">X {number(current?.velocity_teme_km_s?.vx,5)} · Y {number(current?.velocity_teme_km_s?.vy,5)} · Z {number(current?.velocity_teme_km_s?.vz,5)}</p></div></div></>:null}</>:<div data-testid="telemetry-unselected" className="flex items-center justify-between py-1"><div className="h-px flex-1 bg-slate-800"/><span className="px-5 font-mono text-[9px] text-slate-500">BACKEND-SAMPLED UTC TELEMETRY · NO SYNTHETIC INTERPOLATION</span><div className="h-px flex-1 bg-slate-800"/></div>}</div></section>;
+}
