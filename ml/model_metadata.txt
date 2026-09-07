@@ -1,0 +1,9 @@
+ORBIS Unit 4 ML model
+Model: RandomForestClassifier
+Training labels: BOOTSTRAP PROTOTYPE, not independent ground truth.
+Production replacement: train against measured SGP4-vs-reference position error.
+Rows: 18693
+Features: data_age_days, trajectory_consistency, inclination_deg, eccentricity, mean_motion_rev_day, bstar, mean_motion_derivative, mean_motion_second_derivative
+Accuracy: 1.0000
+F1: 1.0000
+ROC-AUC: nan
