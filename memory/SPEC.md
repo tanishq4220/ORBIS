@@ -10,7 +10,7 @@ ORBIS is a dark aerospace mission-control console for orbital object confidence,
 - Conjunction screening is geometric SGP4 separation only; no collision probability is claimed.
 
 ## Key flows
-- Local cookie-session login with demo operator, registration, logout, and protected application routes.
+- Signed HTTP-only cookie-session login with demo operator, registration, logout, protected routes, and session survival across backend reloads.
 - Dashboard loads `/api/summary`, `/api/health`, and bulk `/api/positions`, rendering one GPU point cloud plus a textured Earth.
 - Catalog pages query paginated `/api/objects`; satellites and debris are backend type filters.
 - Object detail loads object identity, state, trajectory, and telemetry; replay controls use returned samples.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import uuid
 from contextlib import asynccontextmanager
@@ -13,6 +14,7 @@ from typing import Any, Optional
 from dotenv import load_dotenv
 from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+import jwt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -65,7 +67,7 @@ _ids: list[str] = []
 _types: list[str] = []
 _startup_error: Optional[str] = None
 _users: dict[str, dict[str, str]] = {}
-_sessions: dict[str, str] = {}
+SESSION_SECRET = os.environ["SESSION_SECRET"]
 
 
 def _password_hash(password: str) -> str:
@@ -88,11 +90,27 @@ def _seed_demo_user() -> None:
 _seed_demo_user()
 
 
+def _create_session(user: dict[str, str]) -> str:
+    return jwt.encode(
+        {
+            "sub": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "exp": datetime.now(timezone.utc).timestamp() + 86400 * 7,
+        },
+        SESSION_SECRET,
+        algorithm="HS256",
+    )
+
+
 def _current_user(session: Optional[str]) -> AuthUser:
-    email = _sessions.get(session or "")
-    if not email or email not in _users:
+    if not session:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return _user_payload(_users[email])
+    try:
+        payload = jwt.decode(session, SESSION_SECRET, algorithms=["HS256"])
+        return AuthUser(id=str(payload["sub"]), email=str(payload["email"]), name=str(payload["name"]))
+    except (jwt.InvalidTokenError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=401, detail="Session expired") from exc
 
 
 @api_router.get("/health")
@@ -118,8 +136,7 @@ async def login(body: LoginRequest, response: Response) -> AuthUser:
     user = _users.get(body.email.strip().lower())
     if not user or not secrets.compare_digest(user["password_hash"], _password_hash(body.password)):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = secrets.token_urlsafe(32)
-    _sessions[token] = user["email"]
+    token = _create_session(user)
     response.set_cookie("orbis_session", token, httponly=True, samesite="lax", max_age=86400 * 7)
     return _user_payload(user)
 
@@ -136,23 +153,23 @@ async def register(body: RegisterRequest, response: Response) -> AuthUser:
         "password_hash": _password_hash(body.password),
     }
     _users[email] = user
-    token = secrets.token_urlsafe(32)
-    _sessions[token] = email
+    token = _create_session(user)
     response.set_cookie("orbis_session", token, httponly=True, samesite="lax", max_age=86400 * 7)
     return _user_payload(user)
 
 
 @api_router.get("/auth/me", response_model=Optional[AuthUser])
 async def me(orbis_session: Optional[str] = Cookie(default=None)) -> Optional[AuthUser]:
-    if not _sessions.get(orbis_session or ""):
+    if not orbis_session:
         return None
-    return _current_user(orbis_session)
+    try:
+        return _current_user(orbis_session)
+    except HTTPException:
+        return None
 
 
 @api_router.post("/auth/logout", status_code=204)
 async def logout(response: Response, orbis_session: Optional[str] = Cookie(default=None)) -> None:
-    if orbis_session:
-        _sessions.pop(orbis_session, None)
     response.delete_cookie("orbis_session")
 
 
