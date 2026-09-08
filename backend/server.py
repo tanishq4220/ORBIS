@@ -263,3 +263,28 @@ api_router.include_router(auth_router)
 api_router.include_router(connection_router)
 api_router.include_router(visualization_router)
 app.include_router(api_router)
+from fastapi.responses import FileResponse
+
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend(full_path: str):
+    if full_path == "api" or full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    index_file = FRONTEND_DIST / "index.html"
+
+    if not index_file.exists():
+        raise HTTPException(status_code=503, detail="Frontend build not found")
+
+    requested = (FRONTEND_DIST / full_path).resolve() if full_path else index_file
+
+    try:
+        requested.relative_to(FRONTEND_DIST.resolve())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if requested.is_file():
+        return FileResponse(requested)
+
+    return FileResponse(index_file)
