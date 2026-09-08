@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://orbisbackend-mhou.onrender.com/api/:path*"
+    }
+  ]
+}
