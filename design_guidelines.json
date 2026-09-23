@@ -1,0 +1,90 @@
+{
+  "project_name": "ORBIS - Orbital Risk & Behaviour Intelligence System",
+  "theme": "Dark Aerospace Mission Control / Space Domain Awareness (SDA)",
+  "design_principles": [
+    "High-Density Tactical Clarity: High-signal telemetry layouts with zero fluff.",
+    "Data-as-Art: The 3D Earth and real SGP4/ACI orbital tracks form the centerpiece of visual command.",
+    "Monochrome Canvas + High-Contrast Telemetry: Dark void (#050811, #0B1220) with precise status signaling (Cyan, Amber, Crimson, Emerald).",
+    "HUD Precision & Tactical Grid: Corner reticles, subtle scanlines, monospaced coordinate badges, and crisp 1px borders."
+  ],
+  "typography": {
+    "font_family_heading": "Chivo, Outfit, sans-serif",
+    "font_family_body": "IBM Plex Sans, sans-serif",
+    "font_family_mono": "JetBrains Mono, Source Code Pro, monospace",
+    "hierarchy": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight uppercase",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight uppercase",
+      "h3_subsection": "text-xl sm:text-2xl font-semibold tracking-normal",
+      "h4_card": "text-lg sm:text-xl font-medium tracking-normal",
+      "body": "text-sm sm:text-base font-normal leading-relaxed",
+      "telemetry_mono": "font-mono text-xs sm:text-sm tracking-wider uppercase"
+    }
+  },
+  "colors": {
+    "background_primary": "#050811",
+    "background_secondary": "#0A101D",
+    "background_card": "#0F172A",
+    "background_glass": "rgba(15, 23, 42, 0.75)",
+    "border_tactical": "#1E293B",
+    "border_glow": "rgba(0, 229, 255, 0.25)",
+    "text_primary": "#F8FAFC",
+    "text_secondary": "#94A3B8",
+    "text_muted": "#64748B",
+    "accent_cyan": "#00E5FF",
+    "accent_blue": "#3B82F6",
+    "status_nominal": "#10B981",
+    "status_warning": "#F59E0B",
+    "status_critical": "#EF4444",
+    "status_aci_alert": "#EC4899"
+  },
+  "visual_enhancers": {
+    "hud_scanlines": "bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.3)_51%)] bg-[length:100%_4px]",
+    "hud_grid_pattern": "bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20",
+    "card_style": "bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg p-5 shadow-2xl transition-all duration-200 hover:border-cyan-500/40",
+    "glow_effects": "shadow-[0_0_15px_rgba(0,229,255,0.15)] hover:shadow-[0_0_25px_rgba(0,229,255,0.3)]"
+  },
+  "components_layout": {
+    "header": {
+      "style": "sticky top-0 z-50 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center justify-between",
+      "elements": [
+        "ORBIS Emblem & System Status Indicator (Live/SGP4 Sync)",
+        "Navigation Links: Command Dashboard, Satellite Catalog, Conjunction Screening, ACI Insights, ML Reliability, Analytics",
+        "Quick Telemetry Replay Controls (Time Scrub, UTC Clock)",
+        "User Profile / Demo Auth Status Badge (operator@orbis.local)"
+      ]
+    },
+    "globe_centerpiece": {
+      "container_style": "relative w-full h-[600px] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-2xl",
+      "overlay_hud": "Tactical reticles in corners, orbital speed readout, satellite filter pills (LEO/GEO/Debris/Active), search & select quick action bar."
+    },
+    "data_tables": {
+      "style": "w-full text-left font-mono text-sm bg-slate-950/50 border border-slate-800 rounded-lg overflow-hidden",
+      "header_style": "bg-slate-900 text-slate-400 font-semibold px-4 py-3 uppercase tracking-wider text-xs border-b border-slate-800",
+      "row_style": "border-b border-slate-800/60 hover:bg-slate-900/60 transition-colors text-slate-200"
+    }
+  },
+  "3d_earth_configuration": {
+    "library": "Three.js / React Three Fiber / Globe GL",
+    "earth_texture": "High-res dark earth atmosphere with specular nighttime city lights & atmospheric glow",
+    "orbital_rendering": "Real-time rendering of satellites, debris, and conjoined trajectory paths driven directly from backend API endpoints GET /api/objects and GET /api/positions",
+    "interactivity": "Orbit control, zoom to satellite on click, path projection line, TCA collision sphere rendering"
+  },
+  "image_urls": {
+    "satellite_hero_1": "https://images.unsplash.com/photo-1708738793054-32b71e3fc822?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwyfHxzYXRlbGxpdGUlMjBvcmJpdGluZyUyMGVhcnRoJTIwZGFyayUyMHNwYWNlJTIwbWlzc2lvbiUyMGNvbnRyb2x8ZW58MHx8fHwxNzg4ODEzMTAwfDA&ixlib=rb-4.1.0&q=85",
+    "space_station_2": "https://images.unsplash.com/photo-1702499903230-867455db1752?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHw0fHxzYXRlbGxpdGUlMjBvcmJpdGluZyUyMGVhcnRoJTIwZGFyayUyMHNwYWNlJTIwbWlzc2lvbiUyMGNvbnRyb2x8ZW58MHx8fHwxNzg4ODEzMTAwfDA&ixlib=rb-4.1.0&q=85",
+    "iss_orbit_3": "https://images.unsplash.com/photo-1614314007212-0257d6e2f7d8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwzfHxzYXRlbGxpdGUlMjBvcmJpdGluZyUyMGVhcnRoJTIwZGFyayUyMHNwYWNlJTIwbWlzc2lvbiUyMGNvbnRyb2x8ZW58MHx8fHwxNzg4ODEzMTAwfDA&ixlib=rb-4.1.0&q=85",
+    "earth_view_4": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHxfHxzYXRlbGxpdGUlMjBvcmJpdGluZyUyMGVhcnRoJTIwZGFyayUyMHNwYWNlJTIwbWlzc2lvbiUyMGNvbnRyb2x8ZW58MHx8fHwxNzg4ODEzMTAwfDA&ixlib=rb-4.1.0&q=85"
+  },
+  "testing_and_accessibility": {
+    "data_testid_policy": "All buttons, navigation tabs, filter inputs, trajectory timeline controls, table pagination, and detail cards MUST include explicit kebab-case data-testid attributes (e.g., data-testid='conjunction-screen-btn', data-testid='object-search-input', data-testid='earth-globe-container').",
+    "contrast_compliance": "WCAG AA compliant contrast (4.5:1+) for all telemetry numbers and alert badges against dark panels."
+  },
+  "instructions_to_main_agent": [
+    "Connect directly to backend endpoints (GET /health, GET /api/summary, GET /api/objects, GET /api/objects/{object_id}, GET /api/positions, POST /api/conjunctions/screen, GET /api/conjunctions/history, ACI/ML endpoints).",
+    "Render the 3D Earth using backend satellite coordinates and trajectories.",
+    "Implement local demo authentication using credentials operator@orbis.local / ORBIS-DEMO-2026.",
+    "Ensure all interactive UI elements have data-testid attributes.",
+    "Preserve all scientific backend files, ACI logic, SGP4 propagators, ML models, and aci_output.csv.",
+    "Deliver a top 1% dark aerospace mission control experience with high-density data visualizations and slick HUD elements."
+  ]
+}
