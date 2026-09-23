@@ -1,0 +1,68 @@
+ORBIS Earth3D rendering attribution
+==================================
+
+Visual engine adapted from mitchcamza / Earth3D:
+https://github.com/mitchcamza/Earth3D
+Pinned source revision: 1d151516f8041e5bec91aee83f7d8261e9f6604d
+
+Shader techniques credited upstream to Bruno Simon's Three.js Journey:
+https://threejs-journey.com/
+
+TEXTURES
+The following original image files are vendored unchanged from the pinned
+Earth3D repository's static/textures directory:
+
+2k_earth_daymap.jpg (2048 x 1024)
+night.jpg (4096 x 2048)
+specularClouds.jpg (4096 x 2048; red = specular mask, green = clouds)
+
+Earth day/night maps and cloud imagery: Solar System Scope.
+https://www.solarsystemscope.com/textures/
+Creative Commons Attribution 4.0 International:
+https://creativecommons.org/licenses/by/4.0/
+
+Specular mapping credit (as documented by Earth3D): James Hastings-Trew,
+Planet Pixel Emporium: https://planetpixelemporium.com/planets.html
+
+Earth3D README attribution:
+https://github.com/mitchcamza/Earth3D/blob/1d151516f8041e5bec91aee83f7d8261e9f6604d/README.md
+
+These are static visual composites, NOT live cloud/weather observations.
+All geographic boundaries and labels remain the existing Natural Earth data.
+All satellite/debris positions, trajectories, epochs, ACI, ML classifications
+and screening results remain supplied by the existing ORBIS backend.
+
+ADAPTATIONS
+Only surface/atmosphere shaders and three texture files were ported.
+React Three Fiber owns the existing responsive canvas and renderer lifecycle.
+ORBIS's existing OrbitControls, starfield and zoom-dependent geography remain.
+UV longitude is mirrored to match ORBIS's +X Greenwich / +Y north / +Z east
+coordinate convention. The standalone axial tilt and independently rotating
+Earth were deliberately not copied: camera auto-rotation must not shift the
+geographic surface away from ECEF positions. Solar direction comes from the
+existing backend environment endpoint at the current live/replay epoch.
+The twilight uniform naming and the packed texture path are corrected from
+the standalone demo. Ocean specular reflection is implemented in the shader.
+Standalone analytics, debug objects and application shell were not imported.
+
+LICENSE
+Earth3D's README declares the source code to be MIT licensed.
+Copyright (c) mitchcamza / Earth3D contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to
+do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.

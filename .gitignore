@@ -23,6 +23,8 @@ __pycache__/
 *.egg
 *.egg-info/
 dist/
+!frontend/dist/
+!frontend/dist/**
 build/
 eggs/
 # lib/ and lib64/ removed to avoid ignoring backend/lib
@@ -68,8 +70,7 @@ yarn-error.log*
 test-results/
 tests/test-results/
 
-# --- Frontend build outputs ---
-frontend/dist/
+# --- Frontend build outputs (dist tracked for single-stage production deployment) ---
 frontend/.vite/
 
 # --- Large generated data files (tracked separately or regenerated) ---
