@@ -18,6 +18,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.exe
 .Python
 *.egg
 *.egg-info/

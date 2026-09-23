@@ -3,7 +3,9 @@ import json
 import subprocess
 import tempfile
 
-BASE = "https://orbis-tracker.preview.emergentagent.com"
+import os
+
+BASE = os.environ.get("BASE_URL", "https://yourself-collaboration-immigration-enhancements.trycloudflare.com")
 
 
 def main():
