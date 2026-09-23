@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 # FACTOR 1 — DATA AGE
 # ============================================================
 
-def calculate_data_age(epoch):
+def calculate_data_age(epoch, current_time=None):
     """
     Calculate age of orbital data in days.
 
@@ -43,9 +43,11 @@ def calculate_data_age(epoch):
     if parsed_epoch is None:
         return np.nan
 
-    current_time = datetime.now(
-        timezone.utc
-    )
+    if current_time is None:
+        current_time = datetime.now(
+            timezone.utc
+        )
+
 
     age_seconds = (
         current_time - parsed_epoch

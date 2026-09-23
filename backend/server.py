@@ -61,15 +61,57 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _build_cors_origins() -> list[str]:
+    """
+    Parse CORS_ORIGINS from the environment.
+
+    Rules:
+    - Must be a comma-separated list of explicit origins (e.g. https://orbis.example.com)
+    - Wildcard (*) is rejected in production when allow_credentials is True because
+      browsers block credentialed requests to wildcard origins (CORS spec, §3.2.2).
+    - An empty value is allowed in development (produces an empty list — no cross-origin
+      requests succeed); it produces a startup warning in production.
+    """
+    raw = os.environ.get("CORS_ORIGINS", "").strip()
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+
+    # Reject wildcard — incompatible with allow_credentials=True
+    if "*" in origins:
+        import warnings
+        warnings.warn(
+            "ORBIS SECURITY: CORS_ORIGINS contains '*' which is incompatible with "
+            "cookie-based authentication (allow_credentials=True). "
+            "Set CORS_ORIGINS to the explicit frontend origin, e.g. "
+            "https://orbis-tracker.preview.emergentagent.com",
+            stacklevel=2,
+        )
+        # Remove the wildcard so the server stays up but cross-origin cookies still fail safely
+        origins = [o for o in origins if o != "*"]
+
+    if not origins:
+        import warnings
+        warnings.warn(
+            "ORBIS: CORS_ORIGINS is empty — cross-origin requests from the frontend "
+            "will be blocked. Set CORS_ORIGINS to the production frontend origin.",
+            stacklevel=2,
+        )
+
+    return origins
+
+
+_CORS_ORIGINS = _build_cors_origins()
+
 app = FastAPI(title="ORBIS API", version="2.1.0", lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_CORS_ORIGINS,
+    # Must be True for cookie-based session authentication.
+    # NOTE: wildcard origins ("*") must NOT be used with credentials — see _build_cors_origins().
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
 
 _satrec_cache: list = []
@@ -150,7 +192,7 @@ async def get_analytics() -> dict[str, Any]:
 
 
 @api_router.get("/objects")
-async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), search: Optional[str] = None, object_type: Optional[str] = None, decision: Optional[str] = None, ml_prediction: Optional[str] = None, sort: Optional[str] = None, order: str = "desc") -> dict[str, Any]:
+async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), page_size: Optional[int] = Query(None, ge=1, le=100), search: Optional[str] = None, object_type: Optional[str] = None, type: Optional[str] = None, decision: Optional[str] = None, ml_prediction: Optional[str] = None, sort: Optional[str] = None, order: str = "desc") -> dict[str, Any]:
     import pandas as pd
     try:
         frame = store.require().copy()
@@ -159,18 +201,21 @@ async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, l
     if search:
         q = search.strip().lower()
         frame = frame[(frame["ID"].astype(str).str.lower().str.contains(q, na=False, regex=False)) | (frame["Name"].astype(str).str.lower().str.contains(q, na=False, regex=False)) | (frame["Type"].astype(str).str.lower().str.contains(q, na=False, regex=False))]
-    if object_type:
-        frame = frame[frame["Type"].astype(str).str.lower() == object_type.strip().lower()]
+    effective_type = type if type is not None else object_type
+    if effective_type:
+        frame = frame[frame["Type"].astype(str).str.lower() == effective_type.strip().lower()]
     if decision:
         frame = frame[frame["Decision"].astype(str).str.upper() == decision.strip().upper()]
     if ml_prediction:
         frame = frame[frame["ML_Prediction"].astype(str).str.upper() == ml_prediction.strip().upper()]
+
     sort_map = {"name": "Name", "id": "ID", "type": "Type", "aci": "ACI", "decision": "Decision", "data_age": "Data_Age_days", "model_confidence": "Model_Confidence", "ml_prediction": "ML_Prediction"}
     if sort and sort.lower() in sort_map:
         frame = frame.sort_values(by=sort_map[sort.lower()], ascending=order.lower() != "desc", na_position="last")
-    total = int(len(frame)); start = (page - 1) * limit
-    page_frame = frame.iloc[start:start + limit]
-    return {"page": page, "limit": limit, "total": total, "total_pages": (total + limit - 1) // limit if total else 0, "objects": [row_to_object(row) for _, row in page_frame.iterrows()]}
+    effective_limit = page_size if page_size is not None else limit
+    total = int(len(frame)); start = (page - 1) * effective_limit
+    page_frame = frame.iloc[start:start + effective_limit]
+    return {"page": page, "limit": effective_limit, "page_size": effective_limit, "total": total, "total_pages": (total + effective_limit - 1) // effective_limit if total else 0, "objects": [row_to_object(row) for _, row in page_frame.iterrows()]}
 
 
 @api_router.get("/objects/{object_id}")
@@ -228,19 +273,19 @@ async def run_screening(body: ScreenRequest) -> dict[str, Any]:
     frame = store.require()
     result = await run_in_threadpool(screen_object, target_id=str(target["id"]), target_tle1=str(target["tle_line1"]), target_tle2=str(target["tle_line2"]), catalog_rows=[row_to_object(r) for _, r in frame.iterrows()], time_step_min=body.time_step_min, window_min=body.window_min, threshold_km=body.threshold_km, top_n=body.top_n, start_utc=parse_utc(body.start_utc) if body.start_utc else datetime.now(timezone.utc))
     if result.get("status") != "ERROR":
-        save_screening(result)
+        await save_screening(result)
     return result
 
 
 @api_router.get("/conjunctions/history")
 async def conjunction_history(limit: int = 50) -> dict[str, Any]:
-    items = list_history(limit=limit)
+    items = await list_history(limit=limit)
     return {"total": len(items), "items": items}
 
 
 @api_router.get("/conjunctions/history/{screening_id}")
 async def conjunction_replay(screening_id: str) -> dict[str, Any]:
-    data = get_screening(screening_id)
+    data = await get_screening(screening_id)
     if data is None:
         raise HTTPException(status_code=404, detail="Screening not found.")
     return data

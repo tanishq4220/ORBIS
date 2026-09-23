@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,8 +20,28 @@ class CatalogStore:
         self.loaded = False
         self.error: Optional[str] = None
         self._by_id: dict[str, int] = {}
+        # asyncio.Lock guards async callers against concurrent cold-loads.
+        # Initialised lazily because a running event loop is required.
+        self._load_lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        """Lazily create the asyncio.Lock inside a running event loop."""
+        if self._load_lock is None:
+            self._load_lock = asyncio.Lock()
+        return self._load_lock
 
     def load(self) -> None:
+        """
+        Synchronous catalog loader.
+
+        MUST only be called from:
+        - The startup lifespan handler (before the event loop is serving requests)
+        - Inside run_in_threadpool() from an async context
+
+        Calling this directly from an async FastAPI route without threadpool
+        wrapping would block the event loop for ~50–100 ms while reading the CSV.
+        Use require_async() from route handlers instead.
+        """
         if not ACI_OUTPUT.exists():
             self.loaded = False
             self.error = (
@@ -30,7 +51,7 @@ class CatalogStore:
 
         try:
             df = pd.read_csv(ACI_OUTPUT)
-            # Normalize expected columns
+            # Normalize expected columns — add as pd.NA if missing
             for col in (
                 "ID",
                 "Name",
@@ -66,10 +87,37 @@ class CatalogStore:
             raise
 
     def require(self) -> pd.DataFrame:
+        """
+        Synchronous require — safe for startup and threadpool contexts.
+
+        Do NOT call directly from async route handlers when df may be None;
+        use require_async() to avoid blocking the event loop.
+        """
         if self.df is None or not self.loaded:
             self.load()
         assert self.df is not None
         return self.df
+
+    async def require_async(self) -> pd.DataFrame:
+        """
+        Async-safe catalog accessor.
+
+        Fast path (normal production case): catalog already loaded → O(1) return.
+        Cold-load path (e.g. after startup failure): acquires a lock and
+        off-loads the blocking CSV read to a thread via run_in_threadpool.
+        Double-checked locking prevents redundant loads under concurrency.
+        """
+        if self.loaded and self.df is not None:
+            return self.df
+
+        async with self._get_lock():
+            # Double-checked locking — another coroutine may have completed the load
+            if self.loaded and self.df is not None:
+                return self.df
+            from starlette.concurrency import run_in_threadpool
+            await run_in_threadpool(self.load)
+            assert self.df is not None
+            return self.df
 
     def get_row(self, object_id: str) -> Optional[pd.Series]:
         df = self.require()
@@ -163,9 +211,20 @@ def subsystem_status() -> dict[str, str]:
         ) or list(ML_MODEL_DIR.glob("**/*model*")):
             statuses["ml"] = "AVAILABLE"
 
-    if SP3_FILE.exists() or list(BASE_DIR.glob("*.SP3")) or list(
-        BASE_DIR.glob("*.sp3")
-    ):
-        statuses["sp3"] = "AVAILABLE"
+        # SP3 is OPERATIONAL only when prediction errors are actually calculated
+        if (
+            "Prediction_Error_km" in store.df.columns
+            and store.df["Prediction_Error_km"].notna().any()
+        ):
+            statuses["sp3"] = "OPERATIONAL"
+        elif SP3_FILE.exists() or list(BASE_DIR.glob("*.SP3")) or list(
+            BASE_DIR.glob("*.sp3")
+        ):
+            statuses["sp3"] = "AVAILABLE (not integrated)"
+    else:
+        if SP3_FILE.exists() or list(BASE_DIR.glob("*.SP3")) or list(
+            BASE_DIR.glob("*.sp3")
+        ):
+            statuses["sp3"] = "AVAILABLE (not integrated)"
 
     return statuses

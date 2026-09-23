@@ -34,6 +34,9 @@ def _jd_fr(dt: datetime) -> tuple[float, float]:
     )
 
 
+import functools
+
+@functools.lru_cache(maxsize=30000)
 def make_satrec(tle1: str, tle2: str) -> Satrec:
     return Satrec.twoline2rv(str(tle1).strip(), str(tle2).strip())
 

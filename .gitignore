@@ -24,10 +24,8 @@ __pycache__/
 dist/
 build/
 eggs/
-.eggs/
-lib/
-lib64/
-parts/
+# lib/ and lib64/ removed to avoid ignoring backend/lib
+
 sdist/
 var/
 wheels/
