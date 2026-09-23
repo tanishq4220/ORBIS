@@ -74,7 +74,8 @@ tests/test-results/
 frontend/.vite/
 
 # --- Large generated data files (tracked separately or regenerated) ---
-ACI/aci_output.csv
+# ACI/aci_output.csv tracked for production catalog serving
+!ACI/aci_output.csv
 ml/ml_train.csv
 ml/ml_test.csv
 ml/ml_model_data.csv

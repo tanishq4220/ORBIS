@@ -17,6 +17,7 @@ COPY ml/ ./ml/
 COPY backend/ ./backend/
 COPY sp3_parser.py ./sp3_parser.py
 COPY sp3_reference.csv ./sp3_reference.csv
+COPY IGS0OPSFIN_20260910000_01D_15M_ORB.SP3* ./
 
 # Copy pre-compiled production frontend SPA
 COPY frontend/dist ./frontend/dist
