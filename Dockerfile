@@ -1,4 +1,4 @@
-# Multi-stage production build for ORBIS on Render
+# Multi-stage production build for ORBIS (Cloud Run / Render compatible)
 # Stage 1: Build the React frontend
 FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
@@ -13,12 +13,8 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-# Install minimal build tools and curl for health checks
+# Install minimal tools for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libtool \
-    autoconf \
-    automake \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,14 +32,12 @@ COPY sp3_reference.csv ./sp3_reference.csv
 # Copy built frontend assets from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Render automatically provides $PORT
-ENV PORT=10000
+# Cloud Run & Render inject dynamic $PORT (default 8080)
+ENV PORT=8080
 ENV ORBIS_OFFLINE_AUTH=1
 ENV DB_NAME=app
-ENV APP_URL=https://orbis-sda.onrender.com
-ENV CORS_ORIGINS=https://orbis-sda.onrender.com
 
-EXPOSE 10000
+EXPOSE 8080
 
 # Start server
-CMD ["sh", "-c", "cd /app/backend && uvicorn server:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["sh", "-c", "cd /app/backend && uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}"]
