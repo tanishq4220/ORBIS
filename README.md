@@ -4,6 +4,10 @@
 
 Production-grade Space Domain Awareness platform featuring high-fidelity orbital propagation, geometric conjunction screening, ACI pipeline confidence metrics, machine-learning risk assessment, and an interactive 3D Earth-orbit visualization cockpit.
 
+* **Live Demo**: [https://orbis-sda-3wrw.onrender.com](https://orbis-sda-3wrw.onrender.com)
+* **Demo Credentials**: `operator@orbis.local` / `ORBIS-DEMO-2026`
+* **Hackathon Submission Brief**: See [SUBMISSION.md](file:///d:/upadated%20orbis/SUBMISSION.md) for complete project documentation, pitch outline, tech stack, and demonstration guides.
+
 ---
 
 ## 🚀 One-Click Production Deployment
