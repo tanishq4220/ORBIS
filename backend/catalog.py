@@ -120,7 +120,17 @@ class CatalogStore:
             return self.df
 
     def get_row(self, object_id: str) -> Optional[pd.Series]:
-        df = self.require()
+        df = self.df if (self.loaded and self.df is not None) else self.require()
+        idx = self._by_id.get(str(object_id))
+        if idx is None:
+            matches = df[df["ID"].astype(str) == str(object_id)]
+            if matches.empty:
+                return None
+            return matches.iloc[0]
+        return df.iloc[idx]
+
+    async def get_row_async(self, object_id: str) -> Optional[pd.Series]:
+        df = await self.require_async()
         idx = self._by_id.get(str(object_id))
         if idx is None:
             matches = df[df["ID"].astype(str) == str(object_id)]
