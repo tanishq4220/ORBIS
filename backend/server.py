@@ -141,7 +141,7 @@ async def health() -> dict[str, Any]:
 @api_router.get("/summary")
 async def get_summary() -> dict[str, Any]:
     try:
-        frame = store.require()
+        frame = await store.require_async()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     type_l = frame["Type"].astype(str).str.lower()
@@ -168,7 +168,7 @@ async def get_summary() -> dict[str, Any]:
 async def get_analytics() -> dict[str, Any]:
     import pandas as pd
     try:
-        frame = store.require()
+        frame = await store.require_async()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -195,7 +195,7 @@ async def get_analytics() -> dict[str, Any]:
 async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), page_size: Optional[int] = Query(None, ge=1, le=100), search: Optional[str] = None, object_type: Optional[str] = None, type: Optional[str] = None, decision: Optional[str] = None, ml_prediction: Optional[str] = None, sort: Optional[str] = None, order: str = "desc") -> dict[str, Any]:
     import pandas as pd
     try:
-        frame = store.require().copy()
+        frame = (await store.require_async()).copy()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     if search:
@@ -220,7 +220,7 @@ async def get_objects(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, l
 
 @api_router.get("/objects/{object_id}")
 async def get_object(object_id: str) -> dict[str, Any]:
-    row = store.get_row(object_id)
+    row = await store.get_row_async(object_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Object {object_id} not found.")
     return row_to_object(row)
@@ -228,7 +228,7 @@ async def get_object(object_id: str) -> dict[str, Any]:
 
 @api_router.get("/objects/{object_id}/state")
 async def get_object_state(object_id: str, utc: Optional[str] = None) -> dict[str, Any]:
-    row = store.get_row(object_id)
+    row = await store.get_row_async(object_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Object {object_id} not found.")
     obj = row_to_object(row); dt = parse_utc(utc)
@@ -240,7 +240,7 @@ async def get_object_state(object_id: str, utc: Optional[str] = None) -> dict[st
 
 @api_router.get("/objects/{object_id}/trajectory")
 async def get_object_trajectory(object_id: str, hours: float = Query(1.5, gt=0, le=24), step_minutes: float = Query(2.0, ge=0.25, le=60), start_utc: Optional[str] = None) -> dict[str, Any]:
-    row = store.get_row(object_id)
+    row = await store.get_row_async(object_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Object {object_id} not found.")
     obj = row_to_object(row)
@@ -264,13 +264,13 @@ async def get_positions(utc: Optional[str] = None) -> dict[str, Any]:
 
 @api_router.post("/conjunctions/screen")
 async def run_screening(body: ScreenRequest) -> dict[str, Any]:
-    row = store.get_row(body.object_id)
+    row = await store.get_row_async(body.object_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Object {body.object_id} not found.")
     target = row_to_object(row)
     if not target.get("tle_line1") or not target.get("tle_line2"):
         raise HTTPException(status_code=400, detail="Target has no TLE.")
-    frame = store.require()
+    frame = await store.require_async()
     result = await run_in_threadpool(screen_object, target_id=str(target["id"]), target_tle1=str(target["tle_line1"]), target_tle2=str(target["tle_line2"]), catalog_rows=[row_to_object(r) for _, r in frame.iterrows()], time_step_min=body.time_step_min, window_min=body.window_min, threshold_km=body.threshold_km, top_n=body.top_n, start_utc=parse_utc(body.start_utc) if body.start_utc else datetime.now(timezone.utc))
     if result.get("status") != "ERROR":
         await save_screening(result)
@@ -295,7 +295,7 @@ async def conjunction_replay(screening_id: str) -> dict[str, Any]:
 async def global_search(q: str, limit: int = 20) -> dict[str, Any]:
     import pandas as pd
     try:
-        frame = store.require()
+        frame = await store.require_async()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     text = q.strip().lower()

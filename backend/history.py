@@ -66,18 +66,28 @@ def _build_summary(result: dict[str, Any]) -> dict[str, Any]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _file_load_index() -> list[dict[str, Any]]:
-    if not INDEX_FILE.exists():
-        return []
-    try:
-        return json.loads(INDEX_FILE.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return []
+    with _file_lock:
+        if not INDEX_FILE.exists():
+            return []
+        try:
+            return json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return []
 
 
 def _file_save_index(items: list[dict[str, Any]]) -> None:
-    temporary = INDEX_FILE.with_suffix(".tmp")
-    temporary.write_text(json.dumps(items, indent=2), encoding="utf-8")
-    temporary.replace(INDEX_FILE)
+    with _file_lock:
+        temporary = INDEX_FILE.with_suffix(f".tmp.{os.getpid()}.{uuid.uuid4().hex}")
+        try:
+            temporary.write_text(json.dumps(items, indent=2), encoding="utf-8")
+            temporary.replace(INDEX_FILE)
+        except Exception:
+            if temporary.exists():
+                try:
+                    temporary.unlink()
+                except Exception:
+                    pass
+            raise
 
 
 def _file_save_screening(result: dict[str, Any]) -> dict[str, Any]:
