@@ -102,7 +102,7 @@ def ecef_to_globe_xyz(
     lat_r = np.deg2rad(lat)
     lon_r = np.deg2rad(lon)
     x = scale * np.cos(lat_r) * np.cos(lon_r)
-    z = scale * np.cos(lat_r) * np.sin(lon_r)
+    z = -scale * np.cos(lat_r) * np.sin(lon_r)
     y = scale * np.sin(lat_r)
     return float(x), float(y), float(z)
 

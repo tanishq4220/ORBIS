@@ -15,11 +15,9 @@ export const earthVertexShader = /* glsl */ `
     vNormal = (modelMatrix * vec4(normal, 0.0)).xyz;
     vPosition = modelPosition.xyz;
 
-    // ORBIS: +X = Greenwich, +Y = north, +Z = 90 degrees east.
-    // SphereGeometry runs longitude in the opposite direction. Mirror the UV,
-    // not the globe_xyz data. This keeps all four texture layers registered
-    // with the existing Natural Earth overlays and backend ECEF positions.
-    vUv = vec2(1.0 - uv.x, uv.y);
+    // ORBIS: +X = Greenwich (lon 0), +Y = north, -Z = 90 deg east, +Z = 90 deg west.
+    // Standard unmirrored SphereGeometry UV convention (u=0.5 at lon 0).
+    vUv = uv;
   }
 `;
 

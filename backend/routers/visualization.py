@@ -26,7 +26,7 @@ async def environment(utc: str | None = None) -> EnvironmentState:
     dec = math.asin(math.sin(obliquity) * math.sin(longitude))
     lon = ra - gmst_rad(dt)
     return EnvironmentState(utc=dt.isoformat().replace("+00:00", "Z"),
-        sun_direction=[math.cos(dec)*math.cos(lon), math.sin(dec), math.cos(dec)*math.sin(lon)],
+        sun_direction=[math.cos(dec)*math.cos(lon), math.sin(dec), -math.cos(dec)*math.sin(lon)],
         illumination_model="Approximate solar ephemeris for visualization; static NASA surface/cloud composites")
 
 

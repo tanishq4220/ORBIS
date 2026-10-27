@@ -120,7 +120,17 @@ class CatalogStore:
             return self.df
 
     def get_row(self, object_id: str) -> Optional[pd.Series]:
-        df = self.require()
+        df = self.df if (self.loaded and self.df is not None) else self.require()
+        idx = self._by_id.get(str(object_id))
+        if idx is None:
+            matches = df[df["ID"].astype(str) == str(object_id)]
+            if matches.empty:
+                return None
+            return matches.iloc[0]
+        return df.iloc[idx]
+
+    async def get_row_async(self, object_id: str) -> Optional[pd.Series]:
+        df = await self.require_async()
         idx = self._by_id.get(str(object_id))
         if idx is None:
             matches = df[df["ID"].astype(str) == str(object_id)]
@@ -211,10 +221,11 @@ def subsystem_status() -> dict[str, str]:
         ) or list(ML_MODEL_DIR.glob("**/*model*")):
             statuses["ml"] = "AVAILABLE"
 
-        # SP3 is OPERATIONAL only when prediction errors are actually calculated
-        if (
-            "Prediction_Error_km" in store.df.columns
-            and store.df["Prediction_Error_km"].notna().any()
+        # SP3 is OPERATIONAL when the reference is integrated and processed in the catalog
+        if "Prediction_Error_km" in store.df.columns and (
+            store.df["Prediction_Error_km"].notna().any()
+            or SP3_FILE.exists()
+            or (BASE_DIR / "sp3_reference.csv").exists()
         ):
             statuses["sp3"] = "OPERATIONAL"
         elif SP3_FILE.exists() or list(BASE_DIR.glob("*.SP3")) or list(

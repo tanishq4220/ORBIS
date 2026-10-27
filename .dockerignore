@@ -18,3 +18,7 @@ env
 *.log
 .coverage
 htmlcov
+ml/*.csv
+ml/orbital_reliability_model.joblib
+ml/data/
+tests/
