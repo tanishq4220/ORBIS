@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { apiGet } from "@/lib/api";
 import type { GeographyData, GeographyLabel } from "@/lib/orbis";
 
-const point = (lon: number, lat: number, radius = 1.002) => { const a = lat * Math.PI / 180, b = lon * Math.PI / 180; return new THREE.Vector3(radius * Math.cos(a) * Math.cos(b), radius * Math.sin(a), radius * Math.cos(a) * Math.sin(b)); };
+const point = (lon: number, lat: number, radius = 1.002) => { const a = lat * Math.PI / 180, b = lon * Math.PI / 180; return new THREE.Vector3(radius * Math.cos(a) * Math.cos(b), radius * Math.sin(a), -radius * Math.cos(a) * Math.sin(b)); };
 export default function GeographyLayer({ level }: { level: number }) {
   const country = useQuery({ queryKey: ["geography", "countries"], queryFn: () => apiGet<GeographyData>("/geography/countries"), staleTime: Infinity });
   const region = useQuery({ queryKey: ["geography", "regions"], queryFn: () => apiGet<GeographyData>("/geography/regions"), enabled: level >= 2, staleTime: Infinity });
